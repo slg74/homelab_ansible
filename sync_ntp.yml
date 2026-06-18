@@ -1,0 +1,68 @@
+---
+- name: Configure NTP with NIST servers
+  hosts: apt_systems
+  become: yes
+  gather_facts: no
+
+  vars:
+    nist_servers:
+      - time-a-g.nist.gov
+      - time-b-g.nist.gov
+      - time.nist.gov
+
+  tasks:
+    - name: Check if chrony is installed
+      ansible.builtin.stat:
+        path: /usr/sbin/chronyd
+      register: chronyd_bin
+
+    - name: Configure chrony with NIST servers
+      ansible.builtin.blockinfile:
+        path: /etc/chrony/chrony.conf
+        marker: "# {mark} NIST NTP SERVERS"
+        block: |
+          {% for server in nist_servers %}
+          server {{ server }} iburst
+          {% endfor %}
+      when: chronyd_bin.stat.exists
+      notify: Restart chrony
+
+    - name: Configure systemd-timesyncd with NIST servers
+      ansible.builtin.ini_file:
+        path: /etc/systemd/timesyncd.conf
+        section: Time
+        option: NTP
+        value: "{{ nist_servers | join(' ') }}"
+      when: not chronyd_bin.stat.exists
+      notify: Restart timesyncd
+
+    - name: Force immediate time sync (chrony)
+      ansible.builtin.command: chronyc makestep
+      changed_when: false
+      when: chronyd_bin.stat.exists
+
+    - name: Force immediate time sync (timesyncd)
+      ansible.builtin.command: timedatectl set-ntp true
+      changed_when: false
+      when: not chronyd_bin.stat.exists
+
+    - name: Show current time sync status
+      ansible.builtin.command: timedatectl show-timesync --all
+      register: timesync_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display sync status
+      ansible.builtin.debug:
+        var: timesync_status.stdout_lines
+
+  handlers:
+    - name: Restart chrony
+      ansible.builtin.service:
+        name: chrony
+        state: restarted
+
+    - name: Restart timesyncd
+      ansible.builtin.service:
+        name: systemd-timesyncd
+        state: restarted
