@@ -1,0 +1,15 @@
+---
+- name: Get current date and time
+  hosts: apt_systems
+  become: no
+  gather_facts: no
+
+  tasks:
+    - name: Get date
+      ansible.builtin.command: date
+      register: current_date
+      changed_when: false
+
+    - name: Display date
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ current_date.stdout }}"
