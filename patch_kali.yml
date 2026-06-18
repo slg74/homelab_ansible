@@ -7,7 +7,7 @@
   tasks:
     - name: Sync system clock via NTP
       ansible.builtin.shell: |
-        if command -v chronyc &>/dev/null; then
+        if command -v chronyc >/dev/null 2>&1; then
           chronyc makestep
         else
           systemctl restart systemd-timesyncd
