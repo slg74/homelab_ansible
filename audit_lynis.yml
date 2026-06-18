@@ -1,0 +1,59 @@
+---
+- name: Run Lynis security audit
+  hosts: apt_systems
+  become: yes
+  gather_facts: no
+
+  vars:
+    lynis_report_dir: "./reports"
+    lynis_remote_log: /var/log/lynis.log
+    lynis_remote_report: /var/log/lynis-report.dat
+
+  tasks:
+    - name: Install lynis
+      ansible.builtin.apt:
+        name: lynis
+        state: present
+        update_cache: yes
+
+    - name: Update lynis database
+      ansible.builtin.command: lynis update info
+      changed_when: false
+
+    - name: Run lynis audit
+      ansible.builtin.command: >
+        lynis audit system --quiet --no-colors
+        --logfile {{ lynis_remote_log }}
+        --report-file {{ lynis_remote_report }}
+      register: lynis_result
+      changed_when: false
+      failed_when: false
+
+    - name: Extract hardening index score
+      ansible.builtin.command: grep "hardening_index" {{ lynis_remote_report }}
+      register: hardening_score
+      changed_when: false
+
+    - name: Display hardening score
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} — {{ hardening_score.stdout }}"
+
+    - name: Ensure local reports directory exists
+      ansible.builtin.file:
+        path: "{{ lynis_report_dir }}/{{ inventory_hostname }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: no
+
+    - name: Fetch lynis log
+      ansible.builtin.fetch:
+        src: "{{ lynis_remote_log }}"
+        dest: "{{ lynis_report_dir }}/{{ inventory_hostname }}/lynis.log"
+        flat: yes
+
+    - name: Fetch lynis report
+      ansible.builtin.fetch:
+        src: "{{ lynis_remote_report }}"
+        dest: "{{ lynis_report_dir }}/{{ inventory_hostname }}/lynis-report.dat"
+        flat: yes

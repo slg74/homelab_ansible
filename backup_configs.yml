@@ -1,0 +1,60 @@
+---
+- name: Back up system configuration files
+  hosts: apt_systems
+  become: yes
+  gather_facts: no
+
+  vars:
+    backup_root: "./backups"
+    timestamp: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+    required_files:
+      - /etc/ssh/sshd_config
+      - /etc/sudoers
+      - /etc/hosts
+      - /etc/hostname
+      - /etc/fstab
+      - /etc/crontab
+      - /etc/passwd
+      - /etc/group
+      - /etc/apt/sources.list
+    optional_files:
+      - /etc/fail2ban/jail.local
+      - /etc/ufw/ufw.conf
+      - /etc/sudoers.d/scott
+      - /etc/apt/sources.list.d/newrelic-infra.list
+
+  tasks:
+    - name: Ensure local backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_root }}/{{ inventory_hostname }}/{{ timestamp }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: no
+
+    - name: Fetch required config files
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ timestamp }}/"
+        flat: no
+      loop: "{{ required_files }}"
+
+    - name: Check which optional files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: optional_stats
+      loop: "{{ optional_files }}"
+
+    - name: Fetch optional config files that exist
+      ansible.builtin.fetch:
+        src: "{{ item.stat.path }}"
+        dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ timestamp }}/"
+        flat: no
+      loop: "{{ optional_stats.results }}"
+      when: item.stat.exists
+      loop_control:
+        label: "{{ item.stat.path | default(item.item) }}"
+
+    - name: List backed up files
+      ansible.builtin.debug:
+        msg: "Configs backed up to {{ backup_root }}/{{ inventory_hostname }}/{{ timestamp }}/"

@@ -1,0 +1,53 @@
+---
+- name: Harden SSH configuration
+  hosts: apt_systems
+  become: yes
+  gather_facts: no
+
+  vars:
+    ssh_config: /etc/ssh/sshd_config
+    ssh_settings:
+      Protocol: "2"
+      PermitRootLogin: "no"
+      PasswordAuthentication: "no"
+      PermitEmptyPasswords: "no"
+      ChallengeResponseAuthentication: "no"
+      PubkeyAuthentication: "yes"
+      X11Forwarding: "no"
+      MaxAuthTries: "3"
+      LoginGraceTime: "60"
+      ClientAliveInterval: "300"
+      ClientAliveCountMax: "2"
+      AllowAgentForwarding: "no"
+      AllowTcpForwarding: "no"
+      Ciphers: "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
+      MACs: "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com"
+      KexAlgorithms: "curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256"
+
+  tasks:
+    - name: Backup sshd_config
+      ansible.builtin.copy:
+        src: "{{ ssh_config }}"
+        dest: "{{ ssh_config }}.bak"
+        remote_src: yes
+        force: no
+
+    - name: Apply SSH hardening settings
+      ansible.builtin.lineinfile:
+        path: "{{ ssh_config }}"
+        regexp: "^#?{{ item.key }}\\s"
+        line: "{{ item.key }} {{ item.value }}"
+        state: present
+      loop: "{{ ssh_settings | dict2items }}"
+      notify: Validate and restart sshd
+
+  handlers:
+    - name: Validate sshd config
+      ansible.builtin.command: sshd -t
+      listen: Validate and restart sshd
+
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+      listen: Validate and restart sshd
