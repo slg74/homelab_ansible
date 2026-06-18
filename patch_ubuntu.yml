@@ -1,0 +1,50 @@
+---
+- name: Apply security patches to Ubuntu systems
+  hosts: ubuntu
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Sync system clock via NTP
+      ansible.builtin.shell: |
+        if command -v chronyc &>/dev/null; then
+          chronyc makestep
+        else
+          systemctl restart systemd-timesyncd
+        fi
+      changed_when: false
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Ensure unattended-upgrades is installed
+      ansible.builtin.apt:
+        name: unattended-upgrades
+        state: present
+
+    - name: Apply security patches
+      ansible.builtin.command: /usr/bin/unattended-upgrade --verbose
+      register: patch_result
+      changed_when: "'Packages that will be upgraded' in patch_result.stdout"
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Display patch output
+      ansible.builtin.debug:
+        var: patch_result.stdout_lines
+
+    - name: Reboot if required
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "Rebooting to complete security patch installation"
+      when: reboot_required_file.stat.exists
+
+    - name: Confirm reboot completed
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} rebooted successfully"
+      when: reboot_required_file.stat.exists
