@@ -1,0 +1,70 @@
+---
+- name: Clean up /var filesystem
+  hosts: apt_systems
+  become: yes
+  gather_facts: no
+
+  vars:
+    var_tmp_age_days: 7
+    log_rotated_age_days: 14
+
+  tasks:
+    - name: Remove apt package cache
+      ansible.builtin.apt:
+        clean: yes
+
+    - name: Remove orphaned packages
+      ansible.builtin.apt:
+        autoremove: yes
+        purge: yes
+
+    - name: Vacuum systemd journal (keep 2 weeks)
+      ansible.builtin.command: journalctl --vacuum-time=2weeks
+      register: journal_vacuum
+      changed_when: "'Deleted archived journal' in journal_vacuum.stderr"
+
+    - name: Remove rotated log files older than {{ log_rotated_age_days }} days
+      ansible.builtin.find:
+        paths: /var/log
+        patterns:
+          - "*.gz"
+          - "*.1"
+          - "*.2"
+          - "*.3"
+          - "*.4"
+          - "*.old"
+        recurse: yes
+        age: "{{ log_rotated_age_days }}d"
+        age_stamp: mtime
+      register: old_logs
+
+    - name: Delete old rotated log files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_logs.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Remove files in /var/tmp older than {{ var_tmp_age_days }} days
+      ansible.builtin.find:
+        paths: /var/tmp
+        age: "{{ var_tmp_age_days }}d"
+        age_stamp: atime
+        recurse: yes
+      register: old_tmp_files
+
+    - name: Delete old /var/tmp files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_tmp_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Summarize cleanup
+      ansible.builtin.debug:
+        msg:
+          - "Rotated logs removed: {{ old_logs.files | length }}"
+          - "Temp files removed:   {{ old_tmp_files.files | length }}"
+          - "Journal vacuum:       {{ journal_vacuum.stderr_lines | select('match', 'Deleted') | list | first | default('nothing to vacuum') }}"

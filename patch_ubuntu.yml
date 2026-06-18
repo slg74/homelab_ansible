@@ -1,6 +1,6 @@
 ---
 - name: Apply security patches to Ubuntu systems
-  hosts: ubuntu
+  hosts: apt_systems
   become: yes
   gather_facts: yes
 

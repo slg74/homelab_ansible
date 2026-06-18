@@ -1,2 +1,9 @@
 [ubuntu]
 ubuntu1 ansible_user=scott
+
+[kali]
+kali ansible_user=scott
+
+[apt_systems:children]
+ubuntu
+kali
