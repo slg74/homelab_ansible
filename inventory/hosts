@@ -1,5 +1,5 @@
 [ubuntu]
-ubuntu1 ansible_user=scott
+ubuntu1 ansible_host=192.168.1.57 ansible_user=scott
 
 [kali]
 kali ansible_host=192.168.1.48 ansible_user=scott
