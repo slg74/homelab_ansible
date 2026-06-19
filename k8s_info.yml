@@ -1,0 +1,61 @@
+---
+- name: List Kubernetes cluster resources
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Get nodes
+      kubernetes.core.k8s_info:
+        kind: Node
+      register: nodes
+
+    - name: Display nodes
+      ansible.builtin.debug:
+        msg: "{{ item.metadata.name }} — {{ item.status.conditions | selectattr('type', 'eq', 'Ready') | map(attribute='status') | first }}"
+      loop: "{{ nodes.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Get namespaces
+      kubernetes.core.k8s_info:
+        kind: Namespace
+      register: namespaces
+
+    - name: Display namespaces
+      ansible.builtin.debug:
+        msg: "{{ namespaces.resources | map(attribute='metadata.name') | list }}"
+
+    - name: Get all pods across all namespaces
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ item.metadata.name }}"
+      register: pods
+      loop: "{{ namespaces.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Display pods
+      ansible.builtin.debug:
+        msg: "[{{ item.item.metadata.name }}] {{ item.resources | map(attribute='metadata.name') | list }}"
+      loop: "{{ pods.results }}"
+      loop_control:
+        label: "{{ item.item.metadata.name }}"
+      when: item.resources | length > 0
+
+    - name: Get deployments across all namespaces
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: "{{ item.metadata.name }}"
+      register: deployments
+      loop: "{{ namespaces.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Display deployments
+      ansible.builtin.debug:
+        msg: "[{{ item.item.metadata.name }}] {{ item.resources | map(attribute='metadata.name') | list }}"
+      loop: "{{ deployments.results }}"
+      loop_control:
+        label: "{{ item.item.metadata.name }}"
+      when: item.resources | length > 0
