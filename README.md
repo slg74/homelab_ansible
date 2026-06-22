@@ -6,7 +6,7 @@ Ansible playbooks for managing a personal homelab running Ubuntu and Kali Linux.
 
 | Host | Group | Description |
 |---|---|---|
-| ubuntu1 | ubuntu, apt_systems | Ubuntu Linux system |
+| ubuntu1 | ubuntu, apt_systems, loki_server | Ubuntu Linux system — runs Loki and Grafana |
 | kali | kali, apt_systems | Kali Linux rolling release system |
 
 ## Playbooks
@@ -73,6 +73,33 @@ Installs fail2ban and deploys a `jail.local` that enables the SSH jail, bans off
 ```bash
 ansible-playbook setup_fail2ban.yml
 ```
+
+### setup_loki.yml
+Deploys a centralized log aggregation stack. Installs Loki (log storage) and Grafana (UI) on `ubuntu1`, and Promtail (log shipper) on all hosts. Promtail collects `/var/log/**/*.log` and the systemd journal from each host and forwards them to Loki. The Loki datasource is provisioned in Grafana automatically.
+
+```bash
+ansible-playbook setup_loki.yml --ask-become-pass
+```
+
+After the run, Grafana is available at `http://192.168.1.57:3000` (default credentials `admin / admin`). To query logs, go to **Explore → Loki** and use LogQL:
+
+```logql
+# All logs from a specific host
+{host="ubuntu1"}
+
+# SSH auth logs across all hosts
+{job="varlogs"} |= "sshd"
+
+# All systemd journal entries for a unit
+{job="systemd-journal", unit="fail2ban.service"}
+```
+
+**Ports used:**
+| Port | Service | Host |
+|------|---------|------|
+| 3100 | Loki HTTP API | ubuntu1 |
+| 3000 | Grafana | ubuntu1 |
+| 9080 | Promtail metrics | all hosts |
 
 ### bootstrap_sudo.yml
 One-time setup playbook that grants passwordless sudo to the `scott` user on all systems. Must be run with `--ask-become-pass` using a user that already has sudo access. Only needs to be run once per new host.
