@@ -7,3 +7,6 @@ kali ansible_host=192.168.1.48 ansible_user=scott
 [apt_systems:children]
 ubuntu
 kali
+
+[loki_server:children]
+ubuntu

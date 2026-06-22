@@ -1,0 +1,170 @@
+---
+- name: Add Grafana APT repository
+  hosts: apt_systems
+  become: yes
+  tasks:
+    - name: Install prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - gpg
+          - wget
+        state: present
+        update_cache: yes
+
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Grafana GPG key
+      get_url:
+        url: https://apt.grafana.com/gpg.key
+        dest: /tmp/grafana.gpg.key
+        mode: '0644'
+
+    - name: Dearmor Grafana GPG key
+      command: gpg --dearmor -o /etc/apt/keyrings/grafana.gpg /tmp/grafana.gpg.key
+      args:
+        creates: /etc/apt/keyrings/grafana.gpg
+
+    - name: Add Grafana APT repository
+      copy:
+        content: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main\n"
+        dest: /etc/apt/sources.list.d/grafana.list
+      notify: Update apt cache
+
+  handlers:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+- name: Install and configure Loki
+  hosts: loki_server
+  become: yes
+  tasks:
+    - name: Install Loki
+      apt:
+        name: loki
+        state: present
+        update_cache: yes
+
+    - name: Create Loki data directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: loki
+        group: loki
+        mode: '0755'
+      loop:
+        - /var/lib/loki
+        - /var/lib/loki/chunks
+        - /var/lib/loki/rules
+
+    - name: Configure Loki
+      template:
+        src: templates/loki.yml.j2
+        dest: /etc/loki/local-config.yaml
+        owner: loki
+        group: loki
+        mode: '0644'
+      notify: Restart Loki
+
+    - name: Enable and start Loki
+      systemd:
+        name: loki
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Restart Loki
+      systemd:
+        name: loki
+        state: restarted
+
+- name: Install and configure Promtail
+  hosts: apt_systems
+  become: yes
+  vars:
+    loki_server_ip: "{{ hostvars['ubuntu1'].ansible_host }}"
+  tasks:
+    - name: Install Promtail
+      apt:
+        name: promtail
+        state: present
+        update_cache: yes
+
+    - name: Create Promtail positions directory
+      file:
+        path: /var/lib/promtail
+        state: directory
+        owner: promtail
+        group: promtail
+        mode: '0755'
+
+    - name: Add promtail user to systemd-journal group
+      user:
+        name: promtail
+        groups: systemd-journal
+        append: yes
+
+    - name: Configure Promtail
+      template:
+        src: templates/promtail.yml.j2
+        dest: /etc/promtail/config.yml
+        owner: promtail
+        group: promtail
+        mode: '0644'
+      notify: Restart Promtail
+
+    - name: Enable and start Promtail
+      systemd:
+        name: promtail
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Restart Promtail
+      systemd:
+        name: promtail
+        state: restarted
+
+- name: Install and configure Grafana
+  hosts: loki_server
+  become: yes
+  tasks:
+    - name: Install Grafana
+      apt:
+        name: grafana
+        state: present
+        update_cache: yes
+
+    - name: Create Grafana datasource provisioning directory
+      file:
+        path: /etc/grafana/provisioning/datasources
+        state: directory
+        owner: grafana
+        group: grafana
+        mode: '0755'
+
+    - name: Provision Loki datasource
+      template:
+        src: templates/grafana_loki_datasource.yml.j2
+        dest: /etc/grafana/provisioning/datasources/loki.yaml
+        owner: grafana
+        group: grafana
+        mode: '0640'
+      notify: Restart Grafana
+
+    - name: Enable and start Grafana
+      systemd:
+        name: grafana-server
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Restart Grafana
+      systemd:
+        name: grafana-server
+        state: restarted
