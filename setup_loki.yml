@@ -64,7 +64,7 @@
     - name: Configure Loki
       template:
         src: templates/loki.yml.j2
-        dest: /etc/loki/local-config.yaml
+        dest: /etc/loki/config.yml
         owner: loki
         mode: '0644'
       notify: Restart Loki
