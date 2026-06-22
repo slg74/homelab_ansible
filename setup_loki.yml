@@ -100,7 +100,6 @@
         path: /var/lib/promtail
         state: directory
         owner: promtail
-        group: promtail
         mode: '0755'
 
     - name: Add promtail user to systemd-journal group
@@ -114,7 +113,6 @@
         src: templates/promtail.yml.j2
         dest: /etc/promtail/config.yml
         owner: promtail
-        group: promtail
         mode: '0644'
       notify: Restart Promtail
 
