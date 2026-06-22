@@ -55,7 +55,6 @@
         path: "{{ item }}"
         state: directory
         owner: loki
-        group: loki
         mode: '0755'
       loop:
         - /var/lib/loki
@@ -67,7 +66,6 @@
         src: templates/loki.yml.j2
         dest: /etc/loki/local-config.yaml
         owner: loki
-        group: loki
         mode: '0644'
       notify: Restart Loki
 
