@@ -100,11 +100,12 @@
         owner: promtail
         mode: '0755'
 
-    - name: Add promtail user to systemd-journal group
+    - name: Add promtail user to log-reading groups
       user:
         name: promtail
-        groups: systemd-journal
+        groups: systemd-journal,adm
         append: yes
+      notify: Restart Promtail
 
     - name: Configure Promtail
       template:
