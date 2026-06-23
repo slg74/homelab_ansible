@@ -3,7 +3,7 @@ ssh_config: /etc/ssh/sshd_config
 
 ssh_settings:
   Protocol: "2"
-  PermitRootLogin: "no"
+  PermitRootLogin: "yes"
   PasswordAuthentication: "no"
   PermitEmptyPasswords: "no"
   ChallengeResponseAuthentication: "no"
