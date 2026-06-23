@@ -1,0 +1,16 @@
+---
+- name: Backup sshd_config
+  ansible.builtin.copy:
+    src: "{{ ssh_config }}"
+    dest: "{{ ssh_config }}.bak"
+    remote_src: yes
+    force: no
+
+- name: Apply SSH hardening settings
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_config }}"
+    regexp: "^#?{{ item.key }}\\s"
+    line: "{{ item.key }} {{ item.value }}"
+    state: present
+  loop: "{{ ssh_settings | dict2items }}"
+  notify: Validate and restart sshd

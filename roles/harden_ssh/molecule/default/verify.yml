@@ -1,0 +1,28 @@
+---
+- name: Verify SSH hardening
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check PermitRootLogin is disabled
+      ansible.builtin.command: grep -E "^PermitRootLogin no" /etc/ssh/sshd_config
+      changed_when: false
+
+    - name: Check PasswordAuthentication is disabled
+      ansible.builtin.command: grep -E "^PasswordAuthentication no" /etc/ssh/sshd_config
+      changed_when: false
+
+    - name: Check PubkeyAuthentication is enabled
+      ansible.builtin.command: grep -E "^PubkeyAuthentication yes" /etc/ssh/sshd_config
+      changed_when: false
+
+    - name: Check X11Forwarding is disabled
+      ansible.builtin.command: grep -E "^X11Forwarding no" /etc/ssh/sshd_config
+      changed_when: false
+
+    - name: Check MaxAuthTries is 3
+      ansible.builtin.command: grep -E "^MaxAuthTries 3" /etc/ssh/sshd_config
+      changed_when: false
+
+    - name: Validate sshd config syntax
+      ansible.builtin.command: sshd -t
+      changed_when: false
