@@ -9,6 +9,45 @@ Ansible playbooks for managing a personal homelab running Ubuntu and Kali Linux.
 | ubuntu1 | ubuntu, apt_systems, loki_server | Ubuntu Linux system — runs Loki and Grafana |
 | kali | kali, apt_systems | Kali Linux rolling release system |
 
+## Roles
+
+Reusable, self-contained units of Ansible logic. Each role lives under `roles/<name>/` and splits its tasks, handlers, and default variables into separate files so they can be tested in isolation and called from any playbook.
+
+```
+roles/
+  harden_ssh/
+    defaults/main.yml   # variables and their defaults (override per host/group)
+    tasks/main.yml      # the actual work
+    handlers/main.yml   # triggered on change (e.g. restart sshd after config change)
+    molecule/default/   # automated tests for this role
+```
+
+### Testing roles with Molecule
+
+Molecule spins up a Docker container, runs the role against it, checks idempotency, runs the verify assertions, then destroys the container.
+
+```bash
+# From the role directory:
+cd roles/harden_ssh
+
+molecule test          # full lifecycle: create → converge → idempotence → verify → destroy
+molecule converge      # apply the role to the container (without destroying it)
+molecule idempotence   # re-run the role and assert zero changes
+molecule verify        # run the verify.yml assertions only
+molecule login         # open a shell inside the test container for manual inspection
+molecule destroy       # tear down the container
+```
+
+The quickest iteration loop when writing or fixing a role:
+
+```bash
+molecule converge && molecule idempotence
+```
+
+### harden_ssh
+
+Hardens `sshd_config`: disables root login and password auth, enforces modern ciphers/MACs/KexAlgorithms, sets idle timeouts, restricts forwarding. Backs up the original config before any changes and validates with `sshd -t` before restarting sshd to prevent lockouts. Called by `harden_ssh.yml`.
+
 ## Playbooks
 
 ### patch_ubuntu.yml
@@ -47,7 +86,7 @@ ansible-playbook get_date.yml
 ```
 
 ### harden_ssh.yml
-Hardens `sshd_config` on all systems: disables root login and password authentication, enforces modern ciphers/MACs/KexAlgorithms, sets idle timeouts, and restricts forwarding. Backs up the original config before making changes and validates with `sshd -t` before restarting to prevent lockouts.
+Runs the `harden_ssh` role against all apt-managed systems. See [Roles → harden_ssh](#harden_ssh) for full details.
 
 ```bash
 ansible-playbook harden_ssh.yml
