@@ -140,6 +140,20 @@ After the run, Grafana is available at `http://192.168.1.57:3000` (default crede
 | 3000 | Grafana | ubuntu1 |
 | 9080 | Promtail metrics | all hosts |
 
+### start_ec2.yml
+Starts the two stopped EC2 instances (`bobasoft_ubuntu1`, `k8s-infographics`) in `us-east-1` and waits until they are fully running. Requires AWS credentials available in the environment.
+
+```bash
+ansible-playbook start_ec2.yml
+```
+
+### stop_ec2.yml
+Gracefully stops the same two EC2 instances and waits until they reach the stopped state.
+
+```bash
+ansible-playbook stop_ec2.yml
+```
+
 ### bootstrap_sudo.yml
 One-time setup playbook that grants passwordless sudo to the `scott` user on all systems. Must be run with `--ask-become-pass` using a user that already has sudo access. Only needs to be run once per new host.
 

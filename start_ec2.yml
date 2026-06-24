@@ -1,0 +1,13 @@
+---
+- name: Start EC2 instances
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Start instances
+      community.aws.ec2_instance:
+        instance_ids:
+          - i-0e837e136f8228d24  # bobasoft_ubuntu1
+          - i-0213dff343540aa38  # k8s-infographics
+        region: us-east-1
+        state: running
+        wait: true

@@ -1,0 +1,23 @@
+---
+- name: Delete instance
+  ec2_instance:
+    instance_ids:
+    - '{{ instance_a }}'
+    - '{{ instance_b }}'
+    state: absent
+    wait: true
+  ignore_errors: true
+
+- name: Delete ASG
+  autoscaling_group:
+    name: '{{ asg_name }}'
+    state: absent
+  ignore_errors: true
+  register: ec2_asg_a
+
+- name: Delete Launch Template
+  autoscaling_launch_config:
+    name: '{{ lc_name }}'
+    state: absent
+  ignore_errors: true
+  register: ec2_lc_a

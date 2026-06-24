@@ -1,0 +1,22 @@
+[tests]
+accelerate
+account_regional
+acl
+complex
+default_retention
+dotted
+encryption_bucket_key
+encryption_kms
+encryption_sse
+inventory
+logging
+missing
+object_lock
+ownership_controls
+public_access
+simple
+tags
+
+[all:vars]
+ansible_connection=local
+ansible_python_interpreter="{{ ansible_playbook_python }}"

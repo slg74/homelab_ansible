@@ -1,2 +1,4 @@
 collections:
   - name: kubernetes.core
+  - name: amazon.aws
+  - name: community.aws
