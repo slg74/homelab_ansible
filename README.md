@@ -4,10 +4,20 @@ Ansible playbooks for managing a personal homelab running Ubuntu and Kali Linux.
 
 ## Inventory
 
+### Static (homelab)
+
 | Host | Group | Description |
 |---|---|---|
 | ubuntu1 | ubuntu, apt_systems, loki_server | Ubuntu Linux system — runs Loki and Grafana |
 | kali | kali, apt_systems | Kali Linux rolling release system |
+
+### Dynamic (AWS EC2)
+
+Managed via `inventory/aws_ec2.yml` using the `amazon.aws.aws_ec2` plugin. Includes running and stopped instances in `us-east-1`. Credentials must be available in the environment (`~/.aws/credentials` or env vars).
+
+| Host | Group | User | Description |
+|---|---|---|---|
+| bobasoft_ubuntu1 | bobasoft_ubuntu1 | ubuntu | Ubuntu 24.04 EC2 instance |
 
 ## Roles
 
