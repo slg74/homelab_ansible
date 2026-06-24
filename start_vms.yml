@@ -1,0 +1,21 @@
+---
+- name: Start VirtualBox VMs
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+    vms:
+      - ubuntu1
+      - kali-linux-2025.4-virtualbox-amd64
+
+  tasks:
+    - name: Get list of running VMs
+      ansible.builtin.command: VBoxManage list runningvms
+      register: running_vms
+      changed_when: false
+
+    - name: Start VMs that are not already running
+      ansible.builtin.command: VBoxManage startvm "{{ item }}" --type headless
+      loop: "{{ vms }}"
+      when: item not in running_vms.stdout
