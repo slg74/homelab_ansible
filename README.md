@@ -164,6 +164,32 @@ Gracefully stops the same two EC2 instances and waits until they reach the stopp
 ansible-playbook stop_ec2.yml
 ```
 
+### install_awx.yml
+Installs AWX on `ubuntu1` using MicroK8s (single-node Kubernetes). Deploys the AWX Operator via kustomize and creates an AWX instance exposed on NodePort 30080. Retrieves and displays the generated admin password at the end of the run. Takes 10–15 minutes on first run due to image pulls and database migration.
+
+```bash
+ansible-playbook install_awx.yml
+```
+
+AWX is available at `http://192.168.1.57:30080` — username `admin`, password retrieved from the Kubernetes secret.
+
+## AWX
+
+AWX is a web UI and REST API layer on top of Ansible, running on `ubuntu1` (MicroK8s). It allows you to run playbooks from a browser, schedule jobs, view run history, and control access without needing CLI access.
+
+AWX is available at: **http://192.168.1.57:30080**
+
+### Connecting this repo
+
+AWX pulls playbooks from git rather than the local filesystem. To wire up this repo:
+
+1. **Project** → Add → Source Control Type: Git → enter this repo's GitHub URL → Save (AWX syncs and indexes all playbooks)
+2. **Credentials** → Add a *Machine* credential with your SSH private key for host access; add an *Amazon Web Services* credential for EC2 dynamic inventory
+3. **Inventories** → Add → add static hosts manually (ubuntu1, kali) or add an Inventory Source pointing to `inventory/aws_ec2.yml` for EC2
+4. **Templates** → Add Job Template → pick Project + playbook + Inventory + Credential → Launch
+
+Once a Job Template is created, any playbook in this repo can be run from the AWX UI, scheduled as a recurring job, or triggered via the REST API.
+
 ### bootstrap_sudo.yml
 One-time setup playbook that grants passwordless sudo to the `scott` user on all systems. Must be run with `--ask-become-pass` using a user that already has sudo access. Only needs to be run once per new host.
 
