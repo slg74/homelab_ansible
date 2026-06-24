@@ -11,3 +11,5 @@ keyed_groups:
     separator: ""
 compose:
   ansible_host: public_ip_address
+  ansible_user: "'ubuntu'"
+  ansible_ssh_private_key_file: "'/Users/scottghome/Downloads/bobasoft1_keys.pem'"
