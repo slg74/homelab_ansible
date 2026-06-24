@@ -15,7 +15,7 @@
       register: running_vms
       changed_when: false
 
-    - name: Gracefully shut down running VMs
-      ansible.builtin.command: VBoxManage controlvm "{{ item }}" acpipowerbutton
+    - name: Save state and stop running VMs
+      ansible.builtin.command: VBoxManage controlvm "{{ item }}" savestate
       loop: "{{ vms }}"
       when: item in running_vms.stdout
