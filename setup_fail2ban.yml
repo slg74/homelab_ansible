@@ -3,51 +3,5 @@
   hosts: apt_systems
   become: yes
   gather_facts: no
-
-  tasks:
-    - name: Install fail2ban
-      ansible.builtin.apt:
-        name: fail2ban
-        state: present
-        update_cache: yes
-
-    - name: Deploy jail.local
-      ansible.builtin.copy:
-        dest: /etc/fail2ban/jail.local
-        mode: "0644"
-        content: |
-          [DEFAULT]
-          bantime  = 1h
-          findtime = 10m
-          maxretry = 3
-          ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24
-
-          [sshd]
-          enabled  = true
-          port     = ssh
-          filter   = sshd
-          logpath  = %(sshd_log)s
-          backend  = %(sshd_backend)s
-      notify: Restart fail2ban
-
-    - name: Enable and start fail2ban
-      ansible.builtin.service:
-        name: fail2ban
-        enabled: yes
-        state: started
-
-    - name: Show fail2ban status
-      ansible.builtin.command: fail2ban-client status sshd
-      register: f2b_status
-      changed_when: false
-      failed_when: false
-
-    - name: Display fail2ban status
-      ansible.builtin.debug:
-        var: f2b_status.stdout_lines
-
-  handlers:
-    - name: Restart fail2ban
-      ansible.builtin.service:
-        name: fail2ban
-        state: restarted
+  roles:
+    - setup_fail2ban

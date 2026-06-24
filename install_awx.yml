@@ -1,0 +1,125 @@
+---
+- name: Install AWX on ubuntu1
+  hosts: ubuntu1
+  become: yes
+  gather_facts: yes
+
+  vars:
+    awx_operator_version: "2.19.1"
+    awx_namespace: awx
+    awx_nodeport: 30080
+
+  tasks:
+    # --- MicroK8s addons ---
+
+    - name: Enable hostpath-storage addon
+      ansible.builtin.command: microk8s enable hostpath-storage
+      register: storage
+      changed_when: "'Addon hostpath-storage is already enabled' not in storage.stdout"
+
+    - name: Wait for MicroK8s to be ready
+      ansible.builtin.command: microk8s status --wait-ready
+      changed_when: false
+
+    # --- AWX namespace ---
+
+    - name: Create AWX namespace
+      ansible.builtin.command: microk8s kubectl create namespace {{ awx_namespace }}
+      register: ns
+      failed_when: ns.rc != 0 and 'already exists' not in ns.stderr
+      changed_when: ns.rc == 0
+
+    # --- Kubeconfig for system tools ---
+
+    - name: Create /root/.kube directory
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: "0700"
+
+    - name: Export MicroK8s kubeconfig
+      ansible.builtin.shell: microk8s config > /root/.kube/config
+      changed_when: false
+
+    # --- AWX operator ---
+
+    - name: Create kustomization directory
+      ansible.builtin.file:
+        path: /tmp/awx-operator
+        state: directory
+        mode: "0755"
+
+    - name: Write kustomization.yaml for AWX operator
+      ansible.builtin.copy:
+        dest: /tmp/awx-operator/kustomization.yaml
+        content: |
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          resources:
+            - github.com/ansible/awx-operator/config/default?ref={{ awx_operator_version }}
+          namespace: {{ awx_namespace }}
+
+    - name: Build and apply AWX operator manifests
+      ansible.builtin.shell: kustomize build /tmp/awx-operator/ | microk8s kubectl apply -f -
+      environment:
+        KUBECONFIG: /root/.kube/config
+
+    # gcr.io/kubebuilder was deprecated — patch to the new registry
+    - name: Patch kube-rbac-proxy to use registry.k8s.io
+      ansible.builtin.command: >
+        microk8s kubectl set image deployment/awx-operator-controller-manager
+        kube-rbac-proxy=registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.15.0
+        -n {{ awx_namespace }}
+
+    - name: Wait for AWX operator to be ready
+      ansible.builtin.command: >
+        microk8s kubectl wait deployment/awx-operator-controller-manager
+        -n {{ awx_namespace }}
+        --for=condition=Available
+        --timeout=300s
+      changed_when: false
+
+    # --- AWX instance ---
+
+    - name: Write AWX instance manifest
+      ansible.builtin.copy:
+        dest: /tmp/awx-instance.yaml
+        content: |
+          ---
+          apiVersion: awx.ansible.com/v1beta1
+          kind: AWX
+          metadata:
+            name: awx
+            namespace: {{ awx_namespace }}
+          spec:
+            service_type: NodePort
+            nodeport_port: {{ awx_nodeport }}
+
+    - name: Apply AWX instance
+      ansible.builtin.command: microk8s kubectl apply -f /tmp/awx-instance.yaml
+
+    - name: Wait for AWX deployment to be ready (takes 5-10 min)
+      ansible.builtin.command: >
+        microk8s kubectl wait deployment/awx
+        -n {{ awx_namespace }}
+        --for=condition=Available
+        --timeout=600s
+      changed_when: false
+
+    # --- Credentials ---
+
+    - name: Get AWX admin password
+      ansible.builtin.command: >
+        microk8s kubectl get secret awx-admin-password
+        -n {{ awx_namespace }}
+        -o jsonpath='{.data.password}'
+      register: awx_password_b64
+      changed_when: false
+
+    - name: Display AWX access info
+      ansible.builtin.debug:
+        msg:
+          - "AWX is ready"
+          - "URL: http://{{ ansible_host }}:{{ awx_nodeport }}"
+          - "Username: admin"
+          - "Password: {{ awx_password_b64.stdout | b64decode }}"

@@ -1,0 +1,33 @@
+---
+- name: Verify fail2ban
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check fail2ban is installed
+      ansible.builtin.command: which fail2ban-client
+      changed_when: false
+
+    - name: Check jail.local exists
+      ansible.builtin.stat:
+        path: /etc/fail2ban/jail.local
+      register: jail_local
+      failed_when: not jail_local.stat.exists
+
+    - name: Check bantime is set
+      ansible.builtin.command: grep "bantime  = 1h" /etc/fail2ban/jail.local
+      changed_when: false
+
+    - name: Check maxretry is set
+      ansible.builtin.command: grep "maxretry = 3" /etc/fail2ban/jail.local
+      changed_when: false
+
+    - name: Check sshd jail is enabled
+      ansible.builtin.command: grep "enabled  = true" /etc/fail2ban/jail.local
+      changed_when: false
+
+    - name: Check fail2ban service is running
+      ansible.builtin.service_facts:
+
+    - name: Assert fail2ban is active
+      ansible.builtin.assert:
+        that: ansible_facts.services['fail2ban.service'].state == 'running'
